@@ -102,9 +102,10 @@ class Watchlist(commands.Cog):
         status="Starting status — defaults to planned",
     )
     @app_commands.choices(status=[
-        app_commands.Choice(name="📋 Planned",  value="planned"),
-        app_commands.Choice(name="▶️ Watching", value="watching"),
-        app_commands.Choice(name="✅ Finished", value="finished"),
+        app_commands.Choice(name="Planned📋",  value="planned"),
+        app_commands.Choice(name="Watching▶️", value="watching"),
+        app_commands.Choice(name="Finished✅", value="finished"),
+        app_commands.Choice(name="Suggestion💡", value="suggestion"),
     ])
     @app_commands.autocomplete(tags=_tag_autocomplete)
     async def add(self, interaction: discord.Interaction, title: str, tags: str, status: str = "planned"):
@@ -233,6 +234,26 @@ class Watchlist(commands.Cog):
         embed.set_footer(text=f"{len(shows)} show(s) total")
         await interaction.followup.send(embed=embed)
 
+
+    # ── /rename ────────────────────────────────
+    @app_commands.command(name="rename", description="Rename a show in the watchlist")
+    @app_commands.describe(title="Current name of the show", new_title="New name")
+    @app_commands.autocomplete(title=_title_autocomplete)
+    async def rename(self, interaction: discord.Interaction, title: str, new_title: str):
+        await interaction.response.defer()
+
+        show = await db.get_show_by_title(interaction.guild_id, title)
+        if not show:
+            await interaction.followup.send(f"❌ Could not find **{title}** in the watchlist.")
+            return
+
+        if await db.get_show_by_title(interaction.guild_id, new_title):
+            await interaction.followup.send(f"⚠️ **{new_title}** already exists in the watchlist.")
+            return
+
+        await db.update_show_title(interaction.guild_id, show["id"], new_title)
+        await interaction.followup.send(f"✏️ Renamed **{title}** to **{new_title}**.")
+
     # ── /pick ────────────────────────────────
 
     @app_commands.command(name="pick", description="Let the bot pick a random show for you")
@@ -241,8 +262,8 @@ class Watchlist(commands.Cog):
         tag="Only pick from shows with this specific tag",
     )
     @app_commands.choices(from_status=[
-        app_commands.Choice(name="📋 Pick something new (planned)",  value="planned"),
-        app_commands.Choice(name="▶️ Continue something (watching)", value="watching"),
+        app_commands.Choice(name="Pick something new (planned)",  value="planned"),
+        app_commands.Choice(name="Continue something (watching)", value="watching"),
     ])
     async def pick(self, interaction: discord.Interaction, from_status: str = "planned", tag: str = None):
         await interaction.response.defer()
@@ -352,6 +373,8 @@ class Watchlist(commands.Cog):
             value="Update a show's status: `planned` → `watching` → `finished`", inline=False)
         embed.add_field(name="`/tag <title> <tags>`",
             value="Replace the genre tags on a show.", inline=False)
+        embed.add_field(name="`/rename <title> <new_title>`",
+            value="Rename a show in the watchlist.", inline=False)
         embed.add_field(name="`/pick [from_status] [tag]`",
             value="Pick a random show. Defaults to `planned`.", inline=False)
         embed.add_field(name="`/list [status] [tag]`",

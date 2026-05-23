@@ -66,6 +66,11 @@ async def clear_all_shows(guild_id: int):
         await db.execute("DELETE FROM shows WHERE guild_id = ?", (guild_id,))
         await db.commit()
 
+async def update_show_title(guild_id: int, show_id: int, new_title: str):
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("UPDATE shows SET title = ? WHERE id = ? AND guild_id = ?", (new_title, show_id, guild_id))
+        await db.commit()
+
 async def get_show_by_title(guild_id: int, title: str):
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
