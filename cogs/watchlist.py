@@ -135,6 +135,40 @@ class Watchlist(commands.Cog):
             f"**Status:** {status} · **Tags:** {_tag_display(parsed_tags)}"
         )
 
+    # ── /suggest ─────────────────────────────────
+
+    @app_commands.command(name="suggest", description="Quickly suggest a show")
+    @app_commands.describe(
+        title="Name of the show",
+        tags="Genre tags separated by commas (e.g. anime,live-action)",
+    )
+    @app_commands.autocomplete(tags=_tag_autocomplete)
+    async def suggest(self, interaction: discord.Interaction, title: str, tags: str):
+        await interaction.response.defer()
+
+        if await db.get_show_by_title(interaction.guild_id, title):
+            await interaction.followup.send(f"⚠️ **{title}** is already in the watchlist.")
+            return
+
+        parsed_tags = [t.strip().lower() for t in tags.split(",") if t.strip()]
+        bad = [t for t in parsed_tags if t not in GENRE_TAGS]
+        if bad:
+            valid = " ".join(f"`{t}`" for t in GENRE_TAGS)
+            await interaction.followup.send(f"⚠️ Unknown tag(s): {_tag_display(bad)}\nAvailable tags: {valid}")
+            return
+
+        await db.add_show(
+            guild_id=interaction.guild_id,
+            title=title,
+            status="suggestion",
+            tags=parsed_tags,
+            added_by_id=interaction.user.id,
+        )
+
+        await interaction.followup.send(
+            f"💡 Suggested **{title}**! · **Tags:** {_tag_display(parsed_tags)}"
+        )
+
     # ── /status ──────────────────────────────
 
     @app_commands.command(name="status", description="Update the watch status of a show")
@@ -369,6 +403,8 @@ class Watchlist(commands.Cog):
         embed = discord.Embed(title="📺 Commands", color=0x5865F2)
         embed.add_field(name="`/add <title> <tags> [status]`",
             value="Add a show.\nExample: `/add Pokemon tags:animation`", inline=False)
+        embed.add_field(name="`/suggest <title> <tags>`",
+            value="Suggest a show.\nExample: `/suggest Pokemon tags:animation`", inline=False)
         embed.add_field(name="`/status <title> <new_status>`",
             value="Update a show's status: `planned` → `watching` → `finished`", inline=False)
         embed.add_field(name="`/tag <title> <tags>`",
