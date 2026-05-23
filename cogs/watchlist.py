@@ -63,10 +63,34 @@ class Watchlist(commands.Cog):
     async def _title_autocomplete(
         self, interaction: discord.Interaction, current: str
     ) -> list[app_commands.Choice[str]]:
-        titles = await db.get_all_titles()
+        titles = await db.get_all_titles(interaction.guild_id)
         return [
             app_commands.Choice(name=t, value=t)
             for t in titles if current.lower() in t.lower()
+        ][:25]
+    
+    async def _tag_autocomplete(
+        self, interaction: discord.Interaction, current: str
+    ) -> list[app_commands.Choice[str]]:
+    # Split what's typed so far — everything before the last comma is already chosen
+        parts = current.split(",")
+        already_chosen = [p.strip().lower() for p in parts[:-1]]
+        current_tag = parts[-1].strip().lower()
+
+        # Suggest tags that match what's being typed and aren't already in the list
+        suggestions = [
+            t for t in GENRE_TAGS
+            if t not in already_chosen and current_tag in t
+        ]
+
+        # Build choices that include the already-typed tags as a prefix
+        prefix = ", ".join(already_chosen)
+        return [
+            app_commands.Choice(
+                name=f"{prefix}, {t}".lstrip(", ") if prefix else t,
+                value=f"{prefix}, {t}".lstrip(", ") if prefix else t,
+            )
+            for t in suggestions
         ][:25]
 
     # ── /add ─────────────────────────────────
@@ -82,10 +106,11 @@ class Watchlist(commands.Cog):
         app_commands.Choice(name="▶️ Watching", value="watching"),
         app_commands.Choice(name="✅ Finished", value="finished"),
     ])
+    @app_commands.autocomplete(tags=_tag_autocomplete)
     async def add(self, interaction: discord.Interaction, title: str, tags: str, status: str = "planned"):
         await interaction.response.defer()
 
-        if await db.get_show_by_title(title):
+        if await db.get_show_by_title(interaction.guild_id, title):
             await interaction.followup.send(f"⚠️ **{title}** is already in the watchlist.")
             return
 
@@ -97,10 +122,11 @@ class Watchlist(commands.Cog):
             return
 
         await db.add_show(
+            guild_id=interaction.guild_id,
             title=title,
             status=status,
             tags=parsed_tags,
-            added_by_id=interaction.user.id,
+            added_by_id=interaction.user.id
         )
 
         await interaction.followup.send(
@@ -121,7 +147,7 @@ class Watchlist(commands.Cog):
     async def update_status(self, interaction: discord.Interaction, title: str, new_status: str):
         await interaction.response.defer()
 
-        show = await db.get_show_by_title(title)
+        show = await db.get_show_by_title(interaction.guild_id, title)
         if not show:
             await interaction.followup.send(f"❌ Could not find **{title}** in the watchlist.")
             return
@@ -131,7 +157,7 @@ class Watchlist(commands.Cog):
             return
 
         old = show["status"]
-        await db.update_show_status(show["id"], new_status)
+        await db.update_show_status(interaction.guild_id, show["id"], new_status)
         await interaction.followup.send(
             f"{STATUS_EMOJI[new_status]} Updated **{title}**: {STATUS_EMOJI[old]} {old} → {STATUS_EMOJI[new_status]} **{new_status}**"
         )
@@ -141,10 +167,11 @@ class Watchlist(commands.Cog):
     @app_commands.command(name="tag", description="Update the tags on a show")
     @app_commands.describe(title="Name of the show", tags="New tags, comma-separated (replaces existing tags)")
     @app_commands.autocomplete(title=_title_autocomplete)
+    @app_commands.autocomplete(tags=_tag_autocomplete)
     async def update_tags(self, interaction: discord.Interaction, title: str, tags: str):
         await interaction.response.defer()
 
-        show = await db.get_show_by_title(title)
+        show = await db.get_show_by_title(interaction.guild_id, title)
         if not show:
             await interaction.followup.send(f"❌ Could not find **{title}** in the watchlist.")
             return
@@ -156,7 +183,7 @@ class Watchlist(commands.Cog):
             await interaction.followup.send(f"⚠️ Unknown tag(s): {_tag_display(bad)}\nAvailable tags: {valid}")
             return
 
-        await db.update_show_tags(show["id"], parsed_tags)
+        await db.update_show_tags(interaction.guild_id, show["id"], parsed_tags)
         await interaction.followup.send(f"🏷️ Updated tags for **{title}**: {_tag_display(parsed_tags)}")
 
     # ── /list ────────────────────────────────
@@ -174,7 +201,7 @@ class Watchlist(commands.Cog):
     async def list_shows(self, interaction: discord.Interaction, status: str = None, tag: str = None):
         await interaction.response.defer()
 
-        shows = await db.get_shows(status=status, tag=tag)
+        shows = await db.get_shows(interaction.guild_id, status=status, tag=tag)
         if not shows:
             qualifier = ""
             if status: qualifier += f" with status **{status}**"
@@ -220,7 +247,7 @@ class Watchlist(commands.Cog):
     async def pick(self, interaction: discord.Interaction, from_status: str = "planned", tag: str = None):
         await interaction.response.defer()
 
-        pool = await db.get_shows(status=from_status, tag=tag)
+        pool = await db.get_shows(interaction.guild_id, status=from_status, tag=tag)
         if not pool:
             qualifier = f" tagged **{tag}**" if tag else ""
             await interaction.followup.send(f"No {from_status} shows{qualifier} to pick from!")
@@ -248,7 +275,7 @@ class Watchlist(commands.Cog):
     async def info(self, interaction: discord.Interaction, title: str):
         await interaction.response.defer()
 
-        show = await db.get_show_by_title(title)
+        show = await db.get_show_by_title(interaction.guild_id, title)
         if not show:
             await interaction.followup.send(f"❌ Could not find **{title}** in the watchlist.")
             return
@@ -266,7 +293,7 @@ class Watchlist(commands.Cog):
     @app_commands.checks.has_permissions(administrator=True)
     @app_commands.autocomplete(title=_title_autocomplete)
     async def remove(self, interaction: discord.Interaction, title: str):
-        show = await db.get_show_by_title(title)
+        show = await db.get_show_by_title(interaction.guild_id, title)
         if not show:
             await interaction.response.send_message(f"❌ Could not find **{title}** in the watchlist.")
             return
@@ -280,7 +307,7 @@ class Watchlist(commands.Cog):
         await view.wait()
 
         if view.confirmed:
-            await db.delete_show(show["id"])
+            await db.delete_show(interaction.guild_id, show["id"])
             await interaction.edit_original_response(content=f"🗑️ Removed **{title}**.", view=None)
         else:
             await interaction.edit_original_response(content="Cancelled.", view=None)
@@ -308,7 +335,7 @@ class Watchlist(commands.Cog):
         await view.wait()
 
         if view.confirmed:
-            await db.clear_all_shows()
+            await db.clear_all_shows(interaction.guild_id)
             await interaction.edit_original_response(content="🗑️ Watchlist cleared.", view=None)
         else:
             await interaction.edit_original_response(content="Cancelled.", view=None)
