@@ -30,11 +30,11 @@ def tags_str_to_list(tags_str: str) -> list[str]:
     return [t for t in tags_str.split(",") if t] if tags_str else []
 
 
-async def add_show(title: str, status: str, tags: list[str], added_by_id: int, added_by_name: str) -> int:
+async def add_show(title: str, status: str, tags: list[str], added_by_id: int) -> int:
     async with aiosqlite.connect(DB_PATH) as db:
         cursor = await db.execute(
-            "INSERT INTO shows (title, status, tags, added_by_id, added_by_name) VALUES (?, ?, ?, ?, ?)",
-            (title, status, _tags_to_str(tags), added_by_id, added_by_name),
+            "INSERT INTO shows (title, status, tags, added_by_id) VALUES (?, ?, ?, ?)",
+            (title, status, _tags_to_str(tags), added_by_id),
         )
         await db.commit()
         return cursor.lastrowid
