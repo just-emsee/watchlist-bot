@@ -19,12 +19,22 @@ async def init_db():
                 title         TEXT    NOT NULL,
                 status        TEXT    NOT NULL DEFAULT 'planned',
                 tags          TEXT    NOT NULL DEFAULT '',
+                notes         TEXT    NOT NULL DEFAULT '',
                 added_by_id   INTEGER NOT NULL,
                 added_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
+        # Migration: add notes column to existing databases that don't have it
+        try:
+            await db.execute("ALTER TABLE shows ADD COLUMN notes TEXT NOT NULL DEFAULT ''")
+        except Exception:
+            pass  # Column already exists, that's fine
         await db.commit()
 
+async def update_note(guild_id: int, show_id: int, note: str):
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("UPDATE shows SET notes = ? WHERE id = ? AND guild_id = ?", (note, show_id, guild_id))
+        await db.commit()
 
 def _tags_to_str(tags: list[str]) -> str:
     return ",".join(t.strip().lower() for t in tags if t.strip())

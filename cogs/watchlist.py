@@ -53,11 +53,13 @@ class Watchlist(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
-    def _build_embed(self, title: str, status: str, tags: list[str], added_by_name: str) -> discord.Embed:
+    def _build_embed(self, title: str, status: str, tags: list[str], added_by_name: str, notes: str = "") -> discord.Embed:
         embed = discord.Embed(title=title, color=STATUS_COLORS[status])
         embed.add_field(name="Status",   value=f"{STATUS_EMOJI[status]} {status.capitalize()}", inline=True)
         embed.add_field(name="Tags",     value=_tag_display(tags),                               inline=True)
         embed.add_field(name="Added by", value=added_by_name,                                    inline=True)
+        if notes:
+            embed.add_field(name="📝 Note", value=notes, inline=False)
         return embed
 
     async def _title_autocomplete(
@@ -338,7 +340,7 @@ class Watchlist(commands.Cog):
         t_list = tags_str_to_list(show["tags"])
         user = interaction.guild.get_member(show["added_by_id"])
         added_by = user.display_name if user else "Unknown"
-        embed = self._build_embed(show["title"], show["status"], t_list, added_by)
+        embed = self._build_embed(show["title"], show["status"], t_list, added_by, notes=show["notes"])
         embed.set_footer(text=f"Added on {show['added_at'][:10]}")
         await interaction.followup.send(embed=embed)
 
@@ -395,6 +397,25 @@ class Watchlist(commands.Cog):
         else:
             await interaction.edit_original_response(content="Cancelled.", view=None)
 
+    # ── /note ────────────────────────────────
+
+    @app_commands.command(name="note", description="Add or update a note on a show")
+    @app_commands.describe(title="Name of the show", note="Your note (leave empty to clear it)")
+    @app_commands.autocomplete(title=_title_autocomplete)
+    async def note(self, interaction: discord.Interaction, title: str, note: str = ""):
+        await interaction.response.defer()
+
+        show = await db.get_show_by_title(interaction.guild_id, title)
+        if not show:
+            await interaction.followup.send(f"❌ Could not find **{title}** in the watchlist.")
+            return
+
+        await db.update_note(interaction.guild_id, show["id"], note)
+
+        if note:
+            await interaction.followup.send(f"📝 Added note to **{title}**: *{note}*")
+        else:
+            await interaction.followup.send(f"🗑️ Cleared note on **{title}**.")
 
     # ── /help ────────────────────────────────
 
@@ -411,6 +432,8 @@ class Watchlist(commands.Cog):
             value="Replace the genre tags on a show.", inline=False)
         embed.add_field(name="`/rename <title> <new_title>`",
             value="Rename a show in the watchlist.", inline=False)
+        embed.add_field(name="`/note <title> [note]`",
+            value="Add or update a note on a show.", inline=False)
         embed.add_field(name="`/pick [from_status] [tag]`",
             value="Pick a random show. Defaults to `planned`.", inline=False)
         embed.add_field(name="`/list [status] [tag]`",
