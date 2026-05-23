@@ -104,10 +104,10 @@ class Watchlist(commands.Cog):
         status="Starting status — defaults to planned",
     )
     @app_commands.choices(status=[
-        app_commands.Choice(name="Planned📋",  value="planned"),
-        app_commands.Choice(name="Watching▶️", value="watching"),
-        app_commands.Choice(name="Finished✅", value="finished"),
-        app_commands.Choice(name="Suggestion💡", value="suggestion"),
+        app_commands.Choice(name="Planned",  value="planned"),
+        app_commands.Choice(name="Watching", value="watching"),
+        app_commands.Choice(name="Finished", value="finished"),
+        app_commands.Choice(name="Suggestion", value="suggestion"),
     ])
     @app_commands.autocomplete(tags=_tag_autocomplete)
     async def add(self, interaction: discord.Interaction, title: str, tags: str, status: str = "planned"):
@@ -176,9 +176,10 @@ class Watchlist(commands.Cog):
     @app_commands.command(name="status", description="Update the watch status of a show")
     @app_commands.describe(title="Name of the show", new_status="New status")
     @app_commands.choices(new_status=[
-        app_commands.Choice(name="📋 Planned",  value="planned"),
-        app_commands.Choice(name="▶️ Watching", value="watching"),
-        app_commands.Choice(name="✅ Finished", value="finished"),
+        app_commands.Choice(name="Planned",  value="planned"),
+        app_commands.Choice(name="Watching", value="watching"),
+        app_commands.Choice(name="Finished", value="finished"),
+        app_commands.Choice(name="Suggestion", value="suggestion"),
     ])
     @app_commands.autocomplete(title=_title_autocomplete)
     async def update_status(self, interaction: discord.Interaction, title: str, new_status: str):
@@ -231,9 +232,10 @@ class Watchlist(commands.Cog):
         tag="Filter by tag (leave empty for all)",
     )
     @app_commands.choices(status=[
-        app_commands.Choice(name="📋 Planned",  value="planned"),
-        app_commands.Choice(name="▶️ Watching", value="watching"),
-        app_commands.Choice(name="✅ Finished", value="finished"),
+        app_commands.Choice(name="Planned",  value="planned"),
+        app_commands.Choice(name="Watching", value="watching"),
+        app_commands.Choice(name="Finished", value="finished"),
+        app_commands.Choice(name="Suggestion", value="suggestion"),
     ])
     async def list_shows(self, interaction: discord.Interaction, status: str = None, tag: str = None):
         await interaction.response.defer()
@@ -260,7 +262,7 @@ class Watchlist(commands.Cog):
             for show in bucket:
                 t_list = tags_str_to_list(show["tags"])
                 tag_part = f" {_tag_display(t_list)}" if t_list else ""
-                lines.append(f"**{show['title']}**{tag_part}")
+                lines.append(f"- **{show['title']}**{tag_part}")
             embed.add_field(
                 name=f"{STATUS_EMOJI[s]} {s.capitalize()} ({len(bucket)})",
                 value="\n".join(lines),
@@ -298,8 +300,9 @@ class Watchlist(commands.Cog):
         tag="Only pick from shows with this specific tag",
     )
     @app_commands.choices(from_status=[
-        app_commands.Choice(name="Pick something new (planned)",  value="planned"),
-        app_commands.Choice(name="Continue something (watching)", value="watching"),
+        app_commands.Choice(name="Planned",  value="planned"),
+        app_commands.Choice(name="Watching", value="watching"),
+        app_commands.Choice(name="Suggestion", value="suggestion"),
     ])
     async def pick(self, interaction: discord.Interaction, from_status: str = "planned", tag: str = None):
         await interaction.response.defer()

@@ -24,11 +24,6 @@ async def init_db():
                 added_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
-        # Migration: add notes column to existing databases that don't have it
-        try:
-            await db.execute("ALTER TABLE shows ADD COLUMN notes TEXT NOT NULL DEFAULT ''")
-        except Exception:
-            pass  # Column already exists, that's fine
         await db.commit()
 
 async def update_note(guild_id: int, show_id: int, note: str):
