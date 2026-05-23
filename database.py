@@ -2,10 +2,12 @@
 #  database.py  –  All SQLite interactions
 # ─────────────────────────────────────────────
 
+import os
 import aiosqlite
 from typing import Optional
 
-DB_PATH = "watchlist.db"
+
+DB_PATH = os.getenv("DB_PATH", "watchlist.db")
 
 
 async def init_db():
