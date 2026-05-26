@@ -104,10 +104,13 @@ class Watchlist(commands.Cog):
         status="Starting status — defaults to planned",
     )
     @app_commands.choices(status=[
+        
+        app_commands.Choice(name="Suggestion", value="suggestion"),
         app_commands.Choice(name="Planned",  value="planned"),
+        app_commands.Choice(name="On-Hold",  value="on-hold"),
+        app_commands.Choice(name="Dropped",  value="dropped"),
         app_commands.Choice(name="Watching", value="watching"),
         app_commands.Choice(name="Finished", value="finished"),
-        app_commands.Choice(name="Suggestion", value="suggestion"),
     ])
     @app_commands.autocomplete(tags=_tag_autocomplete)
     async def add(self, interaction: discord.Interaction, title: str, tags: str, status: str = "planned"):
@@ -176,10 +179,13 @@ class Watchlist(commands.Cog):
     @app_commands.command(name="status", description="Update the watch status of a show")
     @app_commands.describe(title="Name of the show", new_status="New status")
     @app_commands.choices(new_status=[
+        
+        app_commands.Choice(name="Suggestion", value="suggestion"),
         app_commands.Choice(name="Planned",  value="planned"),
+        app_commands.Choice(name="On-Hold",  value="on-hold"),
+        app_commands.Choice(name="Dropped",  value="dropped"),
         app_commands.Choice(name="Watching", value="watching"),
         app_commands.Choice(name="Finished", value="finished"),
-        app_commands.Choice(name="Suggestion", value="suggestion"),
     ])
     @app_commands.autocomplete(title=_title_autocomplete)
     async def update_status(self, interaction: discord.Interaction, title: str, new_status: str):
@@ -232,10 +238,13 @@ class Watchlist(commands.Cog):
         tag="Filter by tag (leave empty for all)",
     )
     @app_commands.choices(status=[
+        
+        app_commands.Choice(name="Suggestion", value="suggestion"),
         app_commands.Choice(name="Planned",  value="planned"),
+        app_commands.Choice(name="On-Hold",  value="on-hold"),
+        app_commands.Choice(name="Dropped",  value="dropped"),
         app_commands.Choice(name="Watching", value="watching"),
         app_commands.Choice(name="Finished", value="finished"),
-        app_commands.Choice(name="Suggestion", value="suggestion"),
     ])
     async def list_shows(self, interaction: discord.Interaction, status: str = None, tag: str = None):
         await interaction.response.defer()

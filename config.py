@@ -10,11 +10,13 @@ GENRE_TAGS = [
     "movie",
 ]
 
-STATUS_OPTIONS = ["suggestion", "planned", "watching", "finished"]
+STATUS_OPTIONS = ["suggestion", "planned", "on-hold", "dropped", "watching", "finished"]
 
 STATUS_COLORS = {
     "suggestion": 0xEB459E,  # pink
     "planned":    0x5865F2,  # blurple
+    "on-hold":    0xF1C53D,  # orange
+    "dropped":    0xED4245,  # red
     "watching":   0xFEE75C,  # yellow
     "finished":   0x57F287,  # green
 }
@@ -22,6 +24,8 @@ STATUS_COLORS = {
 STATUS_EMOJI = {
     "suggestion": "💡",
     "planned":  "📋",
+    "on-hold":  "⏸️",
+    "dropped":  "❌",
     "watching": "▶️",
     "finished": "✅",
 }
