@@ -109,4 +109,33 @@ async def get_all_titles(guild_id: int) -> list[str]:
         rows = await cursor.fetchall()
         return [row[0] for row in rows]
 
+async def export_shows(guild_id: int) -> str:
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        cursor = await db.execute("SELECT * FROM shows WHERE guild_id = ?", (guild_id,))
+        rows = await cursor.fetchall()
+        return json.dumps([dict(row) for row in rows], indent=2)
+
+async def import_shows(data: str) -> int:
+    shows = json.loads(data)
+    async with aiosqlite.connect(DB_PATH) as db:
+        count = 0
+        for show in shows:
+            # Skip if this exact title already exists in this guild
+            cursor = await db.execute(
+                "SELECT id FROM shows WHERE guild_id = ? AND LOWER(title) = LOWER(?)",
+                (show["guild_id"], show["title"])
+            )
+            if await cursor.fetchone():
+                continue
+            await db.execute(
+                """INSERT INTO shows (guild_id, title, status, tags, notes, added_by_id, added_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                (show["guild_id"], show["title"], show["status"], show["tags"],
+                 show.get("notes", ""), show["added_by_id"], show["added_at"])
+            )
+            count += 1
+        await db.commit()
+        return count
+
 
