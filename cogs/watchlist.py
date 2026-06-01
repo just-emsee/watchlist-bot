@@ -484,6 +484,8 @@ class Watchlist(commands.Cog):
         embed.add_field(name="`/tags`",           value="List all available tags.", inline=False)
         embed.add_field(name="`/remove <title>`", value="Remove a show (administrator only).", inline=False)
         embed.add_field(name="`/clearlist`",      value="Clear the entire watchlist (administrator only).", inline=False)
+        embed.add_field(name="`/export`",      value="Export the entire watchlist to a JSON file (administrator only).", inline=False)
+        embed.add_field(name="`/import`",      value="Import a watchlist from a JSON file (administrator only).", inline=False)
         embed.set_footer(text="Title fields have autocomplete — just start typing!")
         await interaction.response.send_message(embed=embed)
 
