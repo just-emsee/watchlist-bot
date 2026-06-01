@@ -430,6 +430,35 @@ class Watchlist(commands.Cog):
         else:
             await interaction.followup.send(f"🗑️ Cleared note on **{title}**.")
 
+
+    # ── /export ────────────────────────────────
+
+    @app_commands.command(name="export", description="Export the watchlist to a JSON file")
+    @app_commands.checks.has_permissions(administrator=True)
+    async def export(self, interaction: discord.Interaction):
+        await interaction.response.defer(ephemeral=True)
+        data = await db.export_shows(interaction.guild_id)
+        file = discord.File(fp=io.BytesIO(data.encode()), filename="watchlist_export.json")
+        await interaction.followup.send("📦 Here's your watchlist export:", file=file, ephemeral=True)
+
+    # ── /import ────────────────────────────────
+
+    @app_commands.command(name="import", description="Import a watchlist from a JSON file")
+    @app_commands.checks.has_permissions(administrator=True)
+    async def import_list(self, interaction: discord.Interaction, file: discord.Attachment):
+        await interaction.response.defer(ephemeral=True)
+
+        if not file.filename.endswith(".json"):
+            await interaction.followup.send("❌ Please upload a `.json` file.", ephemeral=True)
+            return
+
+        try:
+            data = await file.read()
+            count = await db.import_shows(data.decode())
+            await interaction.followup.send(f"✅ Imported {count} show(s) successfully.", ephemeral=True)
+        except Exception as e:
+            await interaction.followup.send(f"❌ Import failed: {e}", ephemeral=True)
+
     # ── /help ────────────────────────────────
 
     @app_commands.command(name="help", description="Show all watchlist commands")
@@ -470,30 +499,6 @@ class Watchlist(commands.Cog):
         else:
             await interaction.response.send_message(f"❌ Something went wrong: {error}", ephemeral=True)
             raise error
-        
-@app_commands.command(name="export", description="Export the watchlist to a JSON file")
-@app_commands.checks.has_permissions(administrator=True)
-async def export(self, interaction: discord.Interaction):
-    await interaction.response.defer(ephemeral=True)
-    data = await db.export_shows(interaction.guild_id)
-    file = discord.File(fp=io.BytesIO(data.encode()), filename="watchlist_export.json")
-    await interaction.followup.send("📦 Here's your watchlist export:", file=file, ephemeral=True)
-
-@app_commands.command(name="import", description="Import a watchlist from a JSON file")
-@app_commands.checks.has_permissions(administrator=True)
-async def import_list(self, interaction: discord.Interaction, file: discord.Attachment):
-    await interaction.response.defer(ephemeral=True)
-
-    if not file.filename.endswith(".json"):
-        await interaction.followup.send("❌ Please upload a `.json` file.", ephemeral=True)
-        return
-
-    try:
-        data = await file.read()
-        count = await db.import_shows(data.decode())
-        await interaction.followup.send(f"✅ Imported {count} show(s) successfully.", ephemeral=True)
-    except Exception as e:
-        await interaction.followup.send(f"❌ Import failed: {e}", ephemeral=True)
 
 
 async def setup(bot: commands.Bot):
