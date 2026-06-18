@@ -5,24 +5,6 @@ Add shows, track status, filter by tag, and let the bot pick what to watch next.
 
 ---
 
-## Commands
-
-| Command | What it does |
-|---|---|
-| `/add <title> [tags] [status]` | Add a show. Creates a forum thread automatically. |
-| `/status <title> <new_status>` | Change a show's status (planned → watching → finished). |
-| `/tag <title> <tags>` | Update the genre tags on a show. |
-| `/list [status] [tag]` | Browse the whole list, optionally filtered. |
-| `/pick [from_status] [tag]` | Pick a random show to watch or continue. |
-| `/info <title>` | See all details about one show. |
-| `/remove <title>` | Remove a show (with confirmation). |
-| `/tags` | See all available genre tags. |
-| `/setup` | (Admin) Create forum tags — run this once after inviting the bot. |
-
-`title` fields have **autocomplete** — just start typing and Discord will suggest matches.
-
----
-
 ## Setup
 
 ### 1 — Create the bot on Discord
