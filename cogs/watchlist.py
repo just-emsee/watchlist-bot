@@ -4,6 +4,7 @@
 
 import random
 import io
+import re
 
 import discord
 from discord import app_commands
@@ -54,11 +55,17 @@ class Watchlist(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
-    def _build_embed(self, title: str, status: str, tags: list[str], added_by_name: str, notes: str = "") -> discord.Embed:
+    def _build_embed(self, title: str, status: str, tags: list[str], added_by_name: str, notes: str = "", progress: str | None = None) -> discord.Embed:
         embed = discord.Embed(title=title, color=STATUS_COLORS[status])
         embed.add_field(name="Status",   value=f"{STATUS_EMOJI[status]} {status.capitalize()}", inline=True)
         embed.add_field(name="Tags",     value=_tag_display(tags),                               inline=True)
         embed.add_field(name="Added by", value=added_by_name,                                    inline=True)
+        if progress:
+            embed.add_field(
+                name="Progress",
+                value=self.format_progress(progress),
+                inline=True
+            )       
         if notes:
             embed.add_field(name="📝 Note", value=notes, inline=False)
         return embed
@@ -95,6 +102,67 @@ class Watchlist(commands.Cog):
             )
             for t in suggestions
         ][:25]
+    
+    # ── progress parsing ──────────────────────────────────
+
+    @staticmethod
+    def parse_progress(text: str) -> str | None:
+        text = text.strip().lower()
+    
+        if text in ("0", ""):
+            return None
+    
+        # s3e5
+        m = re.fullmatch(r"s(\d+)e(\d+)", text)
+        if m:
+            season = int(m.group(1))
+            episode = int(m.group(2))
+    
+        # s3 e5
+        elif (m := re.fullmatch(r"s(\d+)\s+e(\d+)", text)):
+            season = int(m.group(1))
+            episode = int(m.group(2))
+    
+        # 3x5
+        elif (m := re.fullmatch(r"(\d+)x(\d+)", text)):
+            season = int(m.group(1))
+            episode = int(m.group(2))
+    
+        # 3.5
+        elif (m := re.fullmatch(r"(\d+)\.(\d+)", text)):
+            season = int(m.group(1))
+            episode = int(m.group(2))
+    
+        # 3,5
+        elif (m := re.fullmatch(r"(\d+),(\d+)", text)):
+            season = int(m.group(1))
+            episode = int(m.group(2))
+    
+        # e5
+        elif (m := re.fullmatch(r"e(\d+)", text)):
+            season = 1
+            episode = int(m.group(1))
+    
+        # 12
+        elif text.isdigit():
+            season = 1
+            episode = int(text)
+    
+        else:
+            raise ValueError("Invalid progress format")
+    
+        if season <= 0 or episode <= 0:
+            return None
+    
+        return f"{season},{episode}"
+    
+    @staticmethod
+    def format_progress(progress: str) -> str:
+        season, episode = map(int, progress.split(","))
+        if season == 1:
+            return f"Episode {episode}"
+        else:
+            return f"Season {season}, Episode {episode}"
 
     # ── /add ─────────────────────────────────
 
@@ -283,6 +351,83 @@ class Watchlist(commands.Cog):
         await interaction.followup.send(embed=embed)
 
 
+    # ── /progress ────────────────────────────────
+
+    @app_commands.command( name="progress", description="Set watch progress for a show")
+    @app_commands.describe(
+        title="Show title", 
+        progress="Examples: 12, e5, s3e5, 3x5, 3.5, 3,5")
+    @app_commands.autocomplete(title=_title_autocomplete)
+    async def progress(
+            self,
+            interaction: discord.Interaction,
+            title: str,
+            progress: str
+        ):
+            await interaction.response.defer()
+
+            show = await db.get_show_by_title(interaction.guild_id, title)
+
+            if not show:
+                await interaction.followup.send(
+                    f"❌ Could not find **{title}**."
+                )
+                return
+
+            try:
+                parsed = self.parse_progress(progress)
+            except ValueError:
+                await interaction.followup.send(
+                    "❌ Invalid format. Examples: `12`, `e5`, `s3e5`, `3x5`, `3.5`, `3,5`"
+                )
+                return
+
+            await db.update_progress(
+                interaction.guild_id,
+                show["id"],
+                parsed
+            )
+
+            if parsed is None:
+                await interaction.followup.send(
+                    f"🗑️ Cleared progress for **{title}**."
+                )
+            else:
+                await interaction.followup.send(
+                    f"📺 Updated **{title}** to **{self.format_progress(parsed)}**."
+                )
+
+    # ── /display-progress ────────────────────────────────
+
+    @app_commands.command(name="display-progress",description="Show watch progress for all tracked shows")
+    async def display_progress(
+        self,
+        interaction: discord.Interaction
+    ):
+        await interaction.response.defer()
+
+        shows = await db.get_shows_with_progress(
+            interaction.guild_id
+        )
+
+        if not shows:
+            await interaction.followup.send(
+                "No shows currently have progress tracked."
+            )
+            return
+
+        embed = discord.Embed(
+            title="📺 Watch Progress",
+            color=0x5865F2
+        )
+
+        embed.description = "\n".join(
+            f"• **{show['title']}** — {self.format_progress(show['progress'])}"
+            for show in shows
+        )
+
+        await interaction.followup.send(embed=embed)
+
     # ── /rename ────────────────────────────────
     @app_commands.command(name="rename", description="Rename a show in the watchlist")
     @app_commands.describe(title="Current name of the show", new_title="New name")
@@ -335,6 +480,12 @@ class Watchlist(commands.Cog):
         user = interaction.guild.get_member(chosen["added_by_id"])
         added_by = user.display_name if user else "Unknown"
         embed.add_field(name="Added by", value=added_by, inline=True)
+        if chosen["progress"]:
+            embed.add_field(
+                name="Progress",
+                value=self.format_progress(chosen["progress"]),
+                inline=True
+            )
         embed.set_footer(text=f"Randomly chosen from {len(pool)} {from_status} show(s)")
         await interaction.followup.send(embed=embed)
 
@@ -353,7 +504,7 @@ class Watchlist(commands.Cog):
         t_list = tags_str_to_list(show["tags"])
         user = interaction.guild.get_member(show["added_by_id"])
         added_by = user.display_name if user else "Unknown"
-        embed = self._build_embed(show["title"], show["status"], t_list, added_by, notes=show["notes"])
+        embed = self._build_embed(show["title"], show["status"], t_list, added_by, notes=show["notes"],progress=show["progress"])
         embed.set_footer(text=f"Added on {show['added_at'][:10]}")
         await interaction.followup.send(embed=embed)
 

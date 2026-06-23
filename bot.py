@@ -7,6 +7,7 @@ import os
 import asyncio
 
 import discord
+from discord import guild
 from discord.ext import commands
 from dotenv import load_dotenv
 
@@ -27,6 +28,19 @@ async def on_ready():
     # This fires once the bot is fully connected — safe to sync here
     print(f"✅  Logged in as {bot.user} (ID: {bot.user.id})")
     print(f"    Connected to {len(bot.guilds)} server(s)")
+
+    # Sync slash commands to a specific guild (server) for faster updates during development.
+    try :
+       guild_id = id=os.getenv("DEV_GUILD_ID")
+       guild = discord.Object(guild_id)
+       bot.tree.copy_global_to(guild=guild)
+       await bot.tree.sync(guild=guild)
+       print(f"    Synced to dev guild. (ID: {guild_id})")
+    except Exception : pass
+        
+    
+    
+
     synced = await bot.tree.sync()
     print(f"    Synced {len(synced)} slash command(s)")
 

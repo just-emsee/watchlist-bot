@@ -3,6 +3,7 @@
 # ─────────────────────────────────────────────
 
 import os
+import json
 import aiosqlite
 from typing import Optional
 
@@ -20,10 +21,12 @@ async def init_db():
                 status        TEXT    NOT NULL DEFAULT 'planned',
                 tags          TEXT    NOT NULL DEFAULT '',
                 notes         TEXT    NOT NULL DEFAULT '',
+                progress      TEXT    DEFAULT NULL,
                 added_by_id   INTEGER NOT NULL,
                 added_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
+
         await db.commit()
 
 async def update_note(guild_id: int, show_id: int, note: str):
@@ -108,6 +111,30 @@ async def get_all_titles(guild_id: int) -> list[str]:
         )
         rows = await cursor.fetchall()
         return [row[0] for row in rows]
+    
+async def update_progress(guild_id: int, show_id: int, progress: str | None):
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            "UPDATE shows SET progress = ? WHERE id = ? AND guild_id = ?",
+            (progress, show_id, guild_id)
+        )
+        await db.commit()
+
+async def get_shows_with_progress(guild_id: int):
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        cursor = await db.execute(
+            """
+            SELECT *
+            FROM shows
+            WHERE guild_id = ?
+            AND progress IS NOT NULL
+            ORDER BY title COLLATE NOCASE
+            """,
+            (guild_id,)
+        )
+        return await cursor.fetchall()
+
 
 async def export_shows(guild_id: int) -> str:
     async with aiosqlite.connect(DB_PATH) as db:
@@ -129,13 +156,11 @@ async def import_shows(data: str) -> int:
             if await cursor.fetchone():
                 continue
             await db.execute(
-                """INSERT INTO shows (guild_id, title, status, tags, notes, added_by_id, added_at)
+                """INSERT INTO shows (guild_id, title, status, tags, notes, progress, added_by_id, added_at)
                    VALUES (?, ?, ?, ?, ?, ?, ?)""",
                 (show["guild_id"], show["title"], show["status"], show["tags"],
-                 show.get("notes", ""), show["added_by_id"], show["added_at"])
+                 show.get("notes", ""), show.get("progress"), show["added_by_id"], show["added_at"])
             )
             count += 1
         await db.commit()
         return count
-
-
