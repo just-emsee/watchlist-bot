@@ -27,6 +27,13 @@ async def init_db():
             )
         """)
 
+        try:
+            await db.execute(
+                "ALTER TABLE shows ADD COLUMN progress TEXT DEFAULT NULL"
+            )
+        except Exception:
+            pass
+
         await db.commit()
 
 async def update_note(guild_id: int, show_id: int, note: str):
